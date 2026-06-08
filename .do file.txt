@@ -1,0 +1,135 @@
+vlib work
+vmap work work
+
+vcom timersim.vhd
+vcom timer_tb.vhd
+
+vsim work.timer_tb
+
+view wave
+add wave -r sim:/timer_tb/*
+add wave -r sim:/timer_tb/uut/*
+
+force sim:/timer_tb/reset 0
+force sim:/timer_tb/enable 0
+force sim:/timer_tb/p1_switch 0
+force sim:/timer_tb/p2_switch 0
+force sim:/timer_tb/p3_switch 0
+force sim:/timer_tb/p4_switch 0
+run 100 ns
+
+# Iteration 1 -- p1 wins 
+
+force sim:/timer_tb/reset 1
+run 20 ns
+force sim:/timer_tb/reset 0
+run 100 ns
+
+--first round 
+-------------------
+force sim:/timer_tb/enable 1
+run 20 ns
+force sim:/timer_tb/enable 0
+
+force sim:/timer_tb/p1_switch 1
+force sim:/timer_tb/p2_switch 1
+run 5950 ns
+force sim:/timer_tb/p1_switch 0
+run 60 ns
+
+--second round 
+-------------------
+force sim:/timer_tb/enable 1
+run 20 ns
+force sim:/timer_tb/enable 0
+
+force sim:/timer_tb/p1_switch 1
+run 4500 ns
+force sim:/timer_tb/p1_switch 0
+run 20 ns
+
+--third round 
+------------------
+force sim:/timer_tb/enable 1
+run 20 ns
+force sim:/timer_tb/enable 0
+
+force sim:/timer_tb/p1_switch 1
+run 1550 ns
+force sim:/timer_tb/p1_switch 0
+run 140 ns
+
+
+# Iteration 2 --demo of  p3, p4
+--no winner round 
+
+force sim:/timer_tb/reset 1
+run 50 ns
+force sim:/timer_tb/reset 0
+
+force sim:/timer_tb/p1_switch 0
+force sim:/timer_tb/p2_switch 0
+force sim:/timer_tb/p3_switch 0
+force sim:/timer_tb/p4_switch 0
+run 100 ns
+
+
+force sim:/timer_tb/enable 1
+run 20 ns
+force sim:/timer_tb/enable 0
+run 20 ns
+force sim:/timer_tb/p3_switch 1
+force sim:/timer_tb/p4_switch 1
+run 6050 ns
+
+force sim:/timer_tb/enable 1
+run 20 ns
+force sim:/timer_tb/enable 0
+run 4550 ns
+
+force sim:/timer_tb/enable 1
+run 20 ns
+force sim:/timer_tb/enable 0
+run 3425 ns
+
+force sim:/timer_tb/enable 1
+run 20 ns
+force sim:/timer_tb/enable 0
+run 2580 ns
+
+force sim:/timer_tb/enable 1
+run 20 ns
+force sim:/timer_tb/enable 0
+run 1948 ns
+
+force sim:/timer_tb/enable 1
+run 20 ns
+force sim:/timer_tb/enable 0
+run 1474 ns
+
+force sim:/timer_tb/enable 1
+run 20 ns
+force sim:/timer_tb/enable 0
+run 1119 ns
+
+force sim:/timer_tb/enable 1
+run 20 ns
+force sim:/timer_tb/enable 0
+run 853 ns
+
+force sim:/timer_tb/enable 1
+run 20 ns
+force sim:/timer_tb/enable 0
+run 654 ns
+
+force sim:/timer_tb/enable 1
+run 20 ns
+force sim:/timer_tb/enable 0
+run 505 ns
+
+force sim:/timer_tb/enable 1
+run 20 ns
+force sim:/timer_tb/enable 0
+run 393 ns
+
+run 500 ns
