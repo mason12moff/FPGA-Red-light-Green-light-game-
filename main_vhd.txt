@@ -1,0 +1,426 @@
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.NUMERIC_STD.ALL;
+
+entity timer is
+Port (
+clk : in STD_LOGIC;
+reset : in STD_LOGIC;
+enable : in STD_LOGIC;
+
+red_light : out std_logic; 
+green_light : out std_logic; 
+game_over : out std_logic; -- for iterations > 10
+
+p1_switch, p2_switch, p3_switch, p4_switch : in STD_LOGIC; --player switches  
+p1_LED, p2_LED, p3_LED, p4_LED :out std_logic; --player lights
+
+ 
+seven_seg : out std_logic_vector(6 downto 0); 
+seven_en : out std_logic_vector(7 downto 0);  --digit select   
+dp : out std_logic; --decimal point 
+
+done : out STD_LOGIC --to display equivalent to red light, was used for testing 
+);
+end timer;
+
+architecture Behavioral of timer is
+
+signal MAX_COUNT : integer := 600000000; --defines timer durations of six seconds  
+signal count : integer := 0; --tracks timer clock cycles 
+
+--Player signals 
+
+signal p1_count : integer := 0; --tracks player progess using clock cycles
+signal p1_alive : std_logic := '1';   
+signal p1_win : std_logic:='0'; 
+signal p1_flash : std_logic:= '0'; 
+signal p1_tracker : integer range 0 to 10; --converts clock cycles to meters since speed = 1 meter / second 
+signal flash_1: std_logic :='0'; --for win condition 
+
+signal p2_count : integer := 0; --tracks playe progess
+signal p2_alive : std_logic := '1';   
+signal p2_win : std_logic:='0'; 
+signal p2_flash : std_logic:= '0'; 
+signal p2_tracker : integer range 0 to 10; 
+signal flash_2: std_logic :='0'; 
+
+signal p3_count : integer := 0; --tracks playe progess
+signal p3_alive : std_logic := '1';   
+signal p3_win : std_logic:='0'; 
+signal p3_flash : std_logic:= '0'; 
+signal p3_tracker : integer range 0 to 10; 
+signal flash_3: std_logic :='0'; 
+
+signal p4_count : integer := 0; --tracks playe progess
+signal p4_alive : std_logic := '1';   
+signal p4_win : std_logic:='0'; 
+signal p4_flash : std_logic:= '0'; 
+signal p4_tracker : integer range 0 to 10; 
+signal flash_4: std_logic :='0'; 
+
+
+signal MAX_DISTANCE : integer:= 1200000000; --defines win condition, player switch will have to be high for the  equivalent clock cycles for 12 seconds when light is green 
+
+signal done_sig : std_logic := '0'; --red light / player elimination   
+signal running : std_logic :='0'; --green light / players can move 
+signal MAX_IT: integer := 10; --game ends after 10 iterations 
+signal end_sig : std_logic :='0'; --for iteration > 10
+
+
+--seven segemnt signals 
+signal refresh : integer := 0; --for a smooth output on 7 segment display 
+signal digit_select: std_logic_vector(2 downto 0):= "000"; -- switches between display inputs i.e.(timer / player info)
+
+signal timer_d0, timer_d1, timer_d2, timer_d3 : integer range 0 to 9; 
+signal seven_reg : std_logic_vector(6 downto 0); --displays digit on the seven segment 
+signal timer_val : integer range 0 to 9999;  --takes number of clock cycles of timer count down 
+signal display_digit : integer range 0 to 12; -- to iterate between didgits with seven_en
+signal enable_prev : std_logic :='0'; --debouncer 
+
+
+--flash 
+signal max_flash : integer := 10; --0.25 seconds 
+signal flash_count : integer := 0; --count cycles 
+signal flash_refresh : integer := 0; 
+
+
+begin
+
+process(clk, reset)
+begin
+
+if reset = '1' then
+      
+--Global Reset-- 
+count <= 0; --timer progress reset 
+done_sig <= '1'; --start on a redlight
+running <='0';
+max_count <= 600000000;
+max_it <=10;
+end_sig <='0';    
+
+--reset player progress 
+p1_alive <= '1'; --comes back to life for new game 
+p1_count <=0; -- player progress reset 
+p1_win <='0'; --new game 
+p1_tracker <= 0;
+
+p2_alive <= '1'; 
+p2_count <= 0; 
+p2_win <= '0';
+p2_tracker <= 0; 
+
+p3_alive <= '1'; 
+p3_count <= 0; 
+p3_win <= '0';
+p3_tracker <= 0; 
+
+p4_alive <= '1'; 
+p4_count <= 0; 
+p4_win <= '0';
+p4_tracker <= 0; 
+
+timer_val <= 0;
+ 
+
+
+      elsif rising_edge(clk) then
+            -- edge detect
+            if (enable = '1'and enable_prev='0' and running = '0' and p1_win = '0' and end_sig = '0') then
+            running <= '1'; --running signal so that the putton only has to be pessed and not held
+            count <= 0; -- counts clock cycles 
+            done_sig <= '0'; --done sig is mapped to done   
+            end if; 
+            
+      enable_prev <= enable; --for debouncing, 
+             
+                  --Running State
+                  if (running = '1') then
+                  
+                  --win / end conditions
+                  if max_it = 0 then --max iterations reached
+                  end_sig <= '1';  --there's a light for this condition and no more timer starts are accepted 
+                  done_sig <= '1'; 
+                  running <= '0'; --just added 16:08
+                  end if;     
+                  
+                  if p1_count >= MAX_DISTANCE then 
+                  done_sig <='1'; 
+                  p1_win <= '1'; 
+                  running <='0';
+                   
+                  elsif
+                  p2_count >= MAX_DISTANCE then 
+                  done_sig <='1'; 
+                  p2_win <= '1'; 
+                  running <='0';
+                  
+                  elsif
+                  p3_count >= MAX_DISTANCE then 
+                  done_sig <='1'; 
+                  p3_win <= '1'; 
+                  running <='0';
+                  
+                  elsif
+                  p4_count >= MAX_DISTANCE then 
+                  done_sig <='1'; 
+                  p4_win <= '1'; 
+                  running <='0';          
+                  end if;
+                  
+                        
+                              --increments            
+                        if count >= max_count then --timer done! 
+                        done_sig <= '1';
+                        running <= '0';
+                        max_count <= (max_count * 3) / 4; --timer decreases every round 
+                        max_it <= max_it - 1; 
+                        else
+                                    
+                        count <= count + 1;
+                        end if; 
+                        
+                        if (count >= MAX_COUNT) then
+                        timer_val <= 0; 
+                        else 
+                        timer_val <= ((MAX_COUNT - count) / 100000); --counts down  
+                        
+                        end if; 
+                                    
+                              --player one logic--
+                              if (p1_switch = '1' and p1_alive = '1') then 
+                              p1_count <= p1_count + 1; 
+                              p1_tracker <= p1_count / 100000000; --converts clock cycles when p1_switch = '1' -> meters travelled 
+                              end if;
+                              
+                              --playertwo--                             
+                              if (p2_switch = '1' and p2_alive = '1') then 
+                              p2_count <= p2_count + 1; 
+                              p2_tracker <= p2_count / 100000000; 
+                              end if;
+                              
+                              --player three--
+                              if (p3_switch = '1' and p3_alive = '1') then 
+                              p3_count <= p3_count + 1; 
+                              p3_tracker <= p3_count / 100000000; 
+                              end if;
+                              
+                              --player four-- 
+                              if (p4_switch = '1' and p4_alive = '1') then 
+                              p4_count <= p4_count + 1; 
+                              p4_tracker <= p4_count / 100000000; 
+                              end if;
+            
+            
+                  end if; --running
+                  
+                  
+                  
+                  --elimination condition  
+                  if (running = '0') then 
+                  if p1_switch = '1' then --eliminated if moving during red light 
+                  p1_alive <= '0'; 
+                  end if; 
+                  end if;
+                  
+                  if (running = '0') then 
+                  if p2_switch = '1' then 
+                  p2_alive <= '0'; 
+                  end if; 
+                  end if;
+                  
+                  if (running = '0') then 
+                  if p3_switch = '1' then 
+                  p3_alive <= '0'; 
+                  end if; 
+                  end if;
+                  
+                  if (running = '0') then 
+                  if p4_switch = '1' then 
+                  p4_alive <= '0'; 
+                  end if; 
+                  end if;
+      
+      
+end if; --reset / rising edge 
+end process;
+green_light <= running; --light green when running 
+red_light <= done_sig; --light red when timer is done 
+done <= done_sig; --used for testing 
+game_over <= end_sig; --max iteration signal 
+-----------------------------------------------------------
+-----------------------------------------------------------
+--P1_LED_Driver 
+process(clk, reset)
+begin
+if reset = '1' then
+flash_refresh <= 0;
+flash_1 <= '0';
+flash_2 <= '0';
+flash_3 <= '0';
+flash_4 <= '0';
+
+elsif rising_edge(clk) then
+
+if flash_refresh = 75000000 then -- number of clock cycles  -> 0.75 seconds on / 0ff  
+flash_refresh <= 0;
+
+      -- flashing for win conditions,  
+      
+      if p1_win = '1' then
+      flash_1 <= not flash_1;
+      end if;
+
+      if p2_win = '1' then
+      flash_2 <= not flash_2;
+      end if;
+
+      if p3_win = '1' then
+      flash_3 <= not flash_3;
+      end if;
+
+      if p4_win = '1' then
+      flash_4 <= not flash_4;
+      end if;
+
+else
+flash_refresh <= flash_refresh + 1;
+end if; --flash if 
+
+      -- player 1 normal states
+      if p1_win = '0' then
+      if p1_alive = '1' then
+      flash_1 <= '1'; --player light on when alive 
+      else
+      flash_1 <= '0'; --player light off when dead 
+      end if;
+      end if;
+
+      -- player 2 normal states
+      if p2_win = '0' then
+      if p2_alive = '1' then
+      flash_2 <= '1';
+      else
+      flash_2 <= '0';
+      end if;
+      end if;
+
+      -- player 3 normal states
+      if p3_win = '0' then
+      if p3_alive = '1' then
+      flash_3 <= '1';
+      else
+      flash_3 <= '0';
+      end if;
+      end if;
+
+      -- player 4 normal states
+      if p4_win = '0' then
+      if p4_alive = '1' then
+      flash_4 <= '1';
+      else
+      flash_4 <= '0';
+      end if;
+      end if;
+
+end if; --rising edge elsif 
+end process;
+
+p1_LED <= flash_1; --flash signals mapped to player LEDs 
+p2_LED <= flash_2; 
+p3_LED <= flash_3; 
+p4_LED <= flash_4; 
+----------------------------------------------------------
+----------------------------------------------------------
+--7 segemnt control 
+-------------------------------------------------------
+--Refresh for bit control 
+process(clk, reset)
+begin
+if reset = '1' then
+refresh <= 0;
+digit_select <= "000";
+elsif rising_edge(clk) then
+if refresh = 50000 then --time delay to switch between digits = 0.0005 seconds, this gives us a smooth display 
+refresh <= 0;
+digit_select <= std_logic_vector(unsigned(digit_select) + 1); --iterates through the 7 digits (used 3 for timer and 4 for players) 
+else
+refresh <= refresh + 1;
+end if;
+end if;
+end process;
+
+
+
+-------------------------------------------------------
+--Digit switching using refresh
+-------------------------------------------------------
+timer_d3 <= timer_val / 1000; 
+timer_d2 <= (timer_val  / 100) mod 10; 
+timer_d1 <= (timer_val / 10) mod 10; 
+
+
+process(digit_select, timer_d0, timer_d1, timer_d2, timer_d3,
+p1_tracker, p2_tracker, p3_tracker, p4_tracker)
+begin
+dp <= '1'; -- default is off
+
+case digit_select is 
+
+when "000" => display_digit <= timer_d1;
+seven_en <= "11111101";
+dp <= '1'; -- decimal point after leading digit
+
+when "001" => display_digit <= timer_d2;
+seven_en <= "11111011";
+dp <= '1';
+
+when "010" => display_digit <= timer_d3; --leading digit
+seven_en <= "11110111";
+dp <= '0';
+
+when "011" => display_digit <= p1_tracker;
+seven_en <= "11101111";
+dp <= '1';
+
+when "100" => display_digit <= p2_tracker;
+seven_en <= "11011111";
+dp <= '1';
+
+when "101" => display_digit <= p3_tracker;
+seven_en <= "10111111";
+dp <= '1';
+
+when others => display_digit <= p4_tracker;
+seven_en <= "01111111";
+dp <= '1';
+end case;
+end process;
+
+--digit display on 7 segement  
+process(display_digit, seven_reg) 
+begin
+case display_digit is
+when 0 => seven_reg <= "1000000"; 
+when 1 => seven_reg <= "1111001";
+when 2 => seven_reg <= "0100100";
+when 3 => seven_reg <= "0110000";
+when 4 => seven_reg <= "0011001";
+when 5 => seven_reg <= "0010010";
+when 6 => seven_reg <= "0000010";
+when 7 => seven_reg <= "1111000";
+when 8 => seven_reg <= "0000000";
+when 9 => seven_reg <= "0010000";
+when 10 => seven_reg <= "0001000"; -- A = 10 meter 
+when 11 => seven_reg <= "0000011"; --B
+when 12 => seven_reg <= "1000110"; -- C 
+when others => seven_reg <= "1111111";
+end case;
+end process; 
+seven_seg <= seven_reg;  
+
+---------------------------------------
+
+
+end Behavioral;  
